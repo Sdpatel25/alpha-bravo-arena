@@ -175,21 +175,27 @@ export class GameEngine {
     this.gameState.ammo--;
     this.notifyStateUpdate();
 
+    // Get shoot direction from camera
+    const direction = new THREE.Vector3();
+    this.camera.getWorldDirection(direction);
+    const startPos = this.camera.position.clone();
+
     // Create bullet tracer
-    this.createBulletTracer(this.player.position, this.camera.getWorldDirection(new THREE.Vector3()));
+    this.createBulletTracer(startPos, direction);
 
     // Raycast for hit detection
     const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
+    raycaster.set(startPos, direction);
 
     // Check if we hit any AI
     for (const ai of this.aiCharacters) {
       if (ai.team === "bravo" && !ai.isDead) {
-        const intersect = raycaster.intersectObject(ai.mesh, true);
-        if (intersect.length > 0 && intersect[0].distance < 100) {
+        const intersects = raycaster.intersectObject(ai.mesh, true);
+        if (intersects.length > 0 && intersects[0].distance < 150) {
           ai.takeDamage(25);
           if (ai.isDead) {
             this.gameState.alphaScore++;
+            this.scheduleRespawn(ai);
             this.checkGameOver();
           }
           this.notifyStateUpdate();
@@ -200,36 +206,68 @@ export class GameEngine {
   }
 
   private createBulletTracer(startPos: THREE.Vector3, direction: THREE.Vector3) {
-    const tracerGeometry = new THREE.CylinderGeometry(0.02, 0.02, 2, 8);
-    const tracerMaterial = new THREE.MeshBasicMaterial({
+    // Create a glowing sphere as bullet
+    const bulletGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+    const bulletMaterial = new THREE.MeshBasicMaterial({
       color: 0xFFFF00,
       transparent: true,
-      opacity: 0.8,
+      opacity: 1.0,
     });
-    const tracer = new THREE.Mesh(tracerGeometry, tracerMaterial);
+    const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
     
-    // Position and orient the tracer
-    const endPos = startPos.clone().add(direction.multiplyScalar(100));
-    tracer.position.copy(startPos.clone().add(direction.multiplyScalar(1)));
-    tracer.lookAt(endPos);
-    tracer.rotateX(Math.PI / 2);
+    // Add glow effect
+    const glowGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+    const glowMaterial = new THREE.MeshBasicMaterial({
+      color: 0xFFFF00,
+      transparent: true,
+      opacity: 0.3,
+    });
+    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+    bullet.add(glow);
     
-    this.scene.add(tracer);
+    bullet.position.copy(startPos);
+    this.scene.add(bullet);
     
-    // Animate and remove tracer
+    // Create trail
+    const trailGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.5, 8);
+    const trailMaterial = new THREE.MeshBasicMaterial({
+      color: 0xFFAA00,
+      transparent: true,
+      opacity: 0.6,
+    });
+    const trail = new THREE.Mesh(trailGeometry, trailMaterial);
+    trail.position.copy(startPos);
+    const endPos = startPos.clone().add(direction.clone().multiplyScalar(0.5));
+    trail.lookAt(endPos);
+    trail.rotateX(Math.PI / 2);
+    this.scene.add(trail);
+    
+    // Animate bullet
     let distance = 0;
-    const speed = 200;
+    const speed = 100;
+    const maxDistance = 150;
     const animate = () => {
       distance += speed * 0.016;
-      tracer.position.add(direction.clone().multiplyScalar(speed * 0.016));
-      (tracer.material as THREE.MeshBasicMaterial).opacity -= 0.05;
+      const movement = direction.clone().multiplyScalar(speed * 0.016);
+      bullet.position.add(movement);
+      trail.position.copy(bullet.position);
       
-      if (distance < 100 && (tracer.material as THREE.MeshBasicMaterial).opacity > 0) {
+      // Fade out
+      (bulletMaterial as THREE.MeshBasicMaterial).opacity -= 0.02;
+      (glowMaterial as THREE.MeshBasicMaterial).opacity -= 0.01;
+      (trailMaterial as THREE.MeshBasicMaterial).opacity -= 0.03;
+      
+      if (distance < maxDistance && (bulletMaterial as THREE.MeshBasicMaterial).opacity > 0) {
         requestAnimationFrame(animate);
       } else {
-        this.scene.remove(tracer);
-        tracerGeometry.dispose();
-        tracerMaterial.dispose();
+        this.scene.remove(bullet);
+        this.scene.remove(trail);
+        bulletGeometry.dispose();
+        bulletMaterial.dispose();
+        glowGeometry.dispose();
+        glowMaterial.dispose();
+        trailGeometry.dispose();
+        trailMaterial.dispose();
       }
     };
     animate();
@@ -275,6 +313,17 @@ export class GameEngine {
     this.notifyStateUpdate();
   }
 
+  private scheduleRespawn(ai: AICharacter) {
+    setTimeout(() => {
+      if (!this.gameState.gameOver) {
+        const spawnZ = ai.team === "alpha" ? 20 : -20;
+        const spawnX = (Math.random() - 0.5) * 30;
+        ai.position.set(spawnX, 2, spawnZ);
+        ai.reset();
+      }
+    }, 5000);
+  }
+
   private checkGameOver() {
     if (this.gameState.alphaScore >= 20) {
       this.gameState.gameOver = true;
@@ -313,46 +362,76 @@ export class GameEngine {
     this.player.update(delta);
 
     // Update AI characters
-    const aliveEnemies = this.aiCharacters.filter((ai) => !ai.isDead);
+    const aliveCharacters = this.aiCharacters.filter((ai) => !ai.isDead);
     
-    for (const ai of aliveEnemies) {
-      ai.update(delta, this.player.position, aliveEnemies);
+    for (const ai of aliveCharacters) {
+      ai.update(delta, this.player.position, aliveCharacters);
       
-      // AI shooting at player
+      // AI shooting at player (only enemies)
       if (ai.team === "bravo" && ai.canShoot(this.player.position)) {
-        if (Math.random() < 0.02) {
-          // 2% chance per frame to shoot
+        if (Math.random() < 0.015) {
           const direction = new THREE.Vector3()
             .subVectors(this.player.position, ai.position)
             .normalize();
-          this.createBulletTracer(ai.position.clone().add(new THREE.Vector3(0, 1, 0)), direction);
+          this.createBulletTracer(ai.position.clone().add(new THREE.Vector3(0, 1.5, 0)), direction);
           
-          this.gameState.health = Math.max(0, this.gameState.health - 10);
-          if (this.gameState.health <= 0 && !this.gameState.isDead) {
-            this.handlePlayerDeath();
+          // Random accuracy
+          if (Math.random() < 0.6) {
+            this.gameState.health = Math.max(0, this.gameState.health - 10);
+            if (this.gameState.health <= 0 && !this.gameState.isDead) {
+              this.handlePlayerDeath();
+            }
+            this.notifyStateUpdate();
           }
-          this.notifyStateUpdate();
         }
       }
 
-      // AI fighting each other
-      for (const target of aliveEnemies) {
-        if (ai.team !== target.team && ai.canShoot(target.position)) {
-          if (Math.random() < 0.01) {
-            const direction = new THREE.Vector3()
-              .subVectors(target.position, ai.position)
-              .normalize();
-            this.createBulletTracer(ai.position.clone().add(new THREE.Vector3(0, 1, 0)), direction);
-            
-            target.takeDamage(10);
-            if (target.isDead) {
-              if (ai.team === "alpha") {
-                this.gameState.alphaScore++;
-              } else {
-                this.gameState.bravoScore++;
+      // Teammates shooting at enemies
+      if (ai.team === "alpha") {
+        for (const enemy of aliveCharacters) {
+          if (enemy.team === "bravo" && ai.canShoot(enemy.position)) {
+            if (Math.random() < 0.012) {
+              const direction = new THREE.Vector3()
+                .subVectors(enemy.position, ai.position)
+                .normalize();
+              this.createBulletTracer(ai.position.clone().add(new THREE.Vector3(0, 1.5, 0)), direction);
+              
+              // Teammates have good accuracy
+              if (Math.random() < 0.7) {
+                enemy.takeDamage(15);
+                if (enemy.isDead) {
+                  this.gameState.alphaScore++;
+                  this.scheduleRespawn(enemy);
+                  this.checkGameOver();
+                  this.notifyStateUpdate();
+                }
               }
-              this.checkGameOver();
-              this.notifyStateUpdate();
+              break;
+            }
+          }
+        }
+      }
+
+      // Enemies shooting at teammates
+      if (ai.team === "bravo") {
+        for (const teammate of aliveCharacters) {
+          if (teammate.team === "alpha" && ai.canShoot(teammate.position)) {
+            if (Math.random() < 0.01) {
+              const direction = new THREE.Vector3()
+                .subVectors(teammate.position, ai.position)
+                .normalize();
+              this.createBulletTracer(ai.position.clone().add(new THREE.Vector3(0, 1.5, 0)), direction);
+              
+              if (Math.random() < 0.5) {
+                teammate.takeDamage(15);
+                if (teammate.isDead) {
+                  this.gameState.bravoScore++;
+                  this.scheduleRespawn(teammate);
+                  this.checkGameOver();
+                  this.notifyStateUpdate();
+                }
+              }
+              break;
             }
           }
         }

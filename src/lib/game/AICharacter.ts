@@ -23,69 +23,170 @@ export class AICharacter {
     this.mesh = new THREE.Group();
     
     const bodyColor = team === "alpha" ? 0x2196F3 : 0xF44336;
-    const pantsColor = team === "alpha" ? 0x1976D2 : 0xC62828;
+    const pantsColor = team === "alpha" ? 0x1565C0 : 0xB71C1C;
+    const skinColor = 0xFFDBAC;
     
-    // Body
-    const bodyGeometry = new THREE.BoxGeometry(0.8, 1.2, 0.4);
-    const bodyMaterial = new THREE.MeshStandardMaterial({ color: bodyColor });
-    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-    body.position.y = 0.6;
-    body.castShadow = true;
-    this.mesh.add(body);
+    // Torso
+    const torsoGeometry = new THREE.BoxGeometry(0.6, 1.0, 0.35);
+    const torsoMaterial = new THREE.MeshStandardMaterial({ 
+      color: bodyColor,
+      roughness: 0.7,
+      metalness: 0.2
+    });
+    const torso = new THREE.Mesh(torsoGeometry, torsoMaterial);
+    torso.position.y = 0.5;
+    torso.castShadow = true;
+    this.mesh.add(torso);
     
-    // Head
-    const headGeometry = new THREE.SphereGeometry(0.3, 16, 16);
-    const headMaterial = new THREE.MeshStandardMaterial({ color: 0xFFDBAC });
+    // Head with better proportions
+    const headGeometry = new THREE.BoxGeometry(0.35, 0.4, 0.35);
+    const headMaterial = new THREE.MeshStandardMaterial({ 
+      color: skinColor,
+      roughness: 0.8
+    });
     const head = new THREE.Mesh(headGeometry, headMaterial);
-    head.position.y = 1.5;
+    head.position.y = 1.3;
     head.castShadow = true;
     this.mesh.add(head);
     
-    // Arms
-    const armGeometry = new THREE.CylinderGeometry(0.12, 0.12, 0.8, 8);
-    const armMaterial = new THREE.MeshStandardMaterial({ color: 0xFFDBAC });
+    // Neck
+    const neckGeometry = new THREE.CylinderGeometry(0.12, 0.12, 0.2, 8);
+    const neck = new THREE.Mesh(neckGeometry, headMaterial);
+    neck.position.y = 1.05;
+    neck.castShadow = true;
+    this.mesh.add(neck);
     
-    const leftArm = new THREE.Mesh(armGeometry, armMaterial);
-    leftArm.position.set(-0.5, 0.6, 0);
-    leftArm.castShadow = true;
-    this.mesh.add(leftArm);
+    // Arms with shoulders
+    const upperArmGeometry = new THREE.CylinderGeometry(0.1, 0.08, 0.5, 8);
+    const armMaterial = new THREE.MeshStandardMaterial({ 
+      color: bodyColor,
+      roughness: 0.7
+    });
+    const forearmGeometry = new THREE.CylinderGeometry(0.08, 0.07, 0.5, 8);
+    const handMaterial = new THREE.MeshStandardMaterial({ color: skinColor });
     
-    const rightArm = new THREE.Mesh(armGeometry, armMaterial);
-    rightArm.position.set(0.5, 0.6, 0);
-    rightArm.castShadow = true;
-    this.mesh.add(rightArm);
+    // Left arm
+    const leftShoulder = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), armMaterial);
+    leftShoulder.position.set(-0.45, 0.8, 0);
+    leftShoulder.castShadow = true;
+    this.mesh.add(leftShoulder);
     
-    // Legs
-    const legGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.9, 8);
-    const legMaterial = new THREE.MeshStandardMaterial({ color: pantsColor });
+    const leftUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial);
+    leftUpperArm.position.set(-0.45, 0.5, 0);
+    leftUpperArm.castShadow = true;
+    this.mesh.add(leftUpperArm);
     
-    const leftLeg = new THREE.Mesh(legGeometry, legMaterial);
-    leftLeg.position.set(-0.25, -0.45, 0);
-    leftLeg.castShadow = true;
-    this.mesh.add(leftLeg);
+    const leftForearm = new THREE.Mesh(forearmGeometry, handMaterial);
+    leftForearm.position.set(-0.45, 0.05, 0.1);
+    leftForearm.rotation.x = -0.3;
+    leftForearm.castShadow = true;
+    this.mesh.add(leftForearm);
     
-    const rightLeg = new THREE.Mesh(legGeometry, legMaterial);
-    rightLeg.position.set(0.25, -0.45, 0);
-    rightLeg.castShadow = true;
-    this.mesh.add(rightLeg);
+    // Right arm
+    const rightShoulder = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), armMaterial);
+    rightShoulder.position.set(0.45, 0.8, 0);
+    rightShoulder.castShadow = true;
+    this.mesh.add(rightShoulder);
     
-    // Weapon
+    const rightUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial);
+    rightUpperArm.position.set(0.45, 0.5, 0);
+    rightUpperArm.castShadow = true;
+    this.mesh.add(rightUpperArm);
+    
+    const rightForearm = new THREE.Mesh(forearmGeometry, handMaterial);
+    rightForearm.position.set(0.45, 0.05, 0.1);
+    rightForearm.rotation.x = -0.3;
+    rightForearm.castShadow = true;
+    this.mesh.add(rightForearm);
+    
+    // Legs with hips
+    const upperLegGeometry = new THREE.CylinderGeometry(0.13, 0.11, 0.55, 8);
+    const lowerLegGeometry = new THREE.CylinderGeometry(0.11, 0.09, 0.55, 8);
+    const legMaterial = new THREE.MeshStandardMaterial({ 
+      color: pantsColor,
+      roughness: 0.8
+    });
+    
+    // Left leg
+    const leftHip = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), legMaterial);
+    leftHip.position.set(-0.2, 0, 0);
+    leftHip.castShadow = true;
+    this.mesh.add(leftHip);
+    
+    const leftUpperLeg = new THREE.Mesh(upperLegGeometry, legMaterial);
+    leftUpperLeg.position.set(-0.2, -0.3, 0);
+    leftUpperLeg.castShadow = true;
+    this.mesh.add(leftUpperLeg);
+    
+    const leftLowerLeg = new THREE.Mesh(lowerLegGeometry, legMaterial);
+    leftLowerLeg.position.set(-0.2, -0.85, 0);
+    leftLowerLeg.castShadow = true;
+    this.mesh.add(leftLowerLeg);
+    
+    // Right leg
+    const rightHip = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), legMaterial);
+    rightHip.position.set(0.2, 0, 0);
+    rightHip.castShadow = true;
+    this.mesh.add(rightHip);
+    
+    const rightUpperLeg = new THREE.Mesh(upperLegGeometry, legMaterial);
+    rightUpperLeg.position.set(0.2, -0.3, 0);
+    rightUpperLeg.castShadow = true;
+    this.mesh.add(rightUpperLeg);
+    
+    const rightLowerLeg = new THREE.Mesh(lowerLegGeometry, legMaterial);
+    rightLowerLeg.position.set(0.2, -0.85, 0);
+    rightLowerLeg.castShadow = true;
+    this.mesh.add(rightLowerLeg);
+    
+    // Weapon - more detailed assault rifle
     this.weaponMesh = new THREE.Group();
-    const weaponBody = new THREE.BoxGeometry(0.15, 0.15, 0.8);
-    const weaponMaterial = new THREE.MeshStandardMaterial({ color: 0x1a1a1a });
+    const weaponMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x222222,
+      roughness: 0.5,
+      metalness: 0.8
+    });
+    
+    // Main body
+    const weaponBody = new THREE.BoxGeometry(0.12, 0.12, 0.7);
     const weapon = new THREE.Mesh(weaponBody, weaponMaterial);
     weapon.castShadow = true;
     this.weaponMesh.add(weapon);
     
-    // Weapon barrel
-    const barrelGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.4, 8);
+    // Stock
+    const stockGeometry = new THREE.BoxGeometry(0.1, 0.1, 0.3);
+    const stock = new THREE.Mesh(stockGeometry, weaponMaterial);
+    stock.position.z = -0.5;
+    stock.castShadow = true;
+    this.weaponMesh.add(stock);
+    
+    // Barrel
+    const barrelGeometry = new THREE.CylinderGeometry(0.025, 0.025, 0.45, 8);
     const barrel = new THREE.Mesh(barrelGeometry, weaponMaterial);
     barrel.rotation.x = Math.PI / 2;
-    barrel.position.z = 0.6;
+    barrel.position.z = 0.575;
+    barrel.castShadow = true;
     this.weaponMesh.add(barrel);
     
-    this.weaponMesh.position.set(0.35, 0.8, 0.3);
-    this.weaponMesh.rotation.y = -Math.PI / 4;
+    // Magazine
+    const magGeometry = new THREE.BoxGeometry(0.08, 0.25, 0.06);
+    const magMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
+    const magazine = new THREE.Mesh(magGeometry, magMaterial);
+    magazine.position.set(0, -0.15, 0.15);
+    magazine.castShadow = true;
+    this.weaponMesh.add(magazine);
+    
+    // Scope
+    const scopeGeometry = new THREE.CylinderGeometry(0.04, 0.04, 0.15, 8);
+    const scope = new THREE.Mesh(scopeGeometry, weaponMaterial);
+    scope.rotation.z = Math.PI / 2;
+    scope.position.set(0, 0.08, 0.1);
+    scope.castShadow = true;
+    this.weaponMesh.add(scope);
+    
+    // Position weapon in hands
+    this.weaponMesh.position.set(0.3, 0.3, 0.35);
+    this.weaponMesh.rotation.set(-0.2, -Math.PI / 6, 0);
     this.mesh.add(this.weaponMesh);
     
     scene.add(this.mesh);
