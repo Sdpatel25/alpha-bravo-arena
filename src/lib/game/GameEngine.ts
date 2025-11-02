@@ -48,8 +48,8 @@ export class GameEngine {
 
     // Setup Three.js
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x1a1a1a);
-    this.scene.fog = new THREE.Fog(0x1a1a1a, 50, 200);
+    this.scene.background = new THREE.Color(0x1a0033);
+    this.scene.fog = new THREE.Fog(0x1a0033, 50, 200);
 
     this.camera = new THREE.PerspectiveCamera(
       75,
@@ -90,10 +90,10 @@ export class GameEngine {
   }
 
   private setupLighting() {
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     this.scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
     dirLight.position.set(50, 100, 50);
     dirLight.castShadow = true;
     dirLight.shadow.camera.left = -100;
@@ -104,14 +104,18 @@ export class GameEngine {
     dirLight.shadow.mapSize.height = 2048;
     this.scene.add(dirLight);
 
-    // Add some point lights for atmosphere
-    const pointLight1 = new THREE.PointLight(0x4A90E2, 0.5, 50);
+    // Colorful atmospheric point lights
+    const pointLight1 = new THREE.PointLight(0x00D9FF, 1.0, 60);
     pointLight1.position.set(-20, 10, -20);
     this.scene.add(pointLight1);
 
-    const pointLight2 = new THREE.PointLight(0xE24A4A, 0.5, 50);
+    const pointLight2 = new THREE.PointLight(0xFF00E5, 1.0, 60);
     pointLight2.position.set(20, 10, 20);
     this.scene.add(pointLight2);
+    
+    const pointLight3 = new THREE.PointLight(0xFFE600, 0.8, 50);
+    pointLight3.position.set(0, 15, 0);
+    this.scene.add(pointLight3);
   }
 
   private createAICharacters() {
@@ -171,6 +175,9 @@ export class GameEngine {
     this.gameState.ammo--;
     this.notifyStateUpdate();
 
+    // Create bullet tracer
+    this.createBulletTracer(this.player.position, this.camera.getWorldDirection(new THREE.Vector3()));
+
     // Raycast for hit detection
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
@@ -190,6 +197,42 @@ export class GameEngine {
         }
       }
     }
+  }
+
+  private createBulletTracer(startPos: THREE.Vector3, direction: THREE.Vector3) {
+    const tracerGeometry = new THREE.CylinderGeometry(0.02, 0.02, 2, 8);
+    const tracerMaterial = new THREE.MeshBasicMaterial({
+      color: 0xFFFF00,
+      transparent: true,
+      opacity: 0.8,
+    });
+    const tracer = new THREE.Mesh(tracerGeometry, tracerMaterial);
+    
+    // Position and orient the tracer
+    const endPos = startPos.clone().add(direction.multiplyScalar(100));
+    tracer.position.copy(startPos.clone().add(direction.multiplyScalar(1)));
+    tracer.lookAt(endPos);
+    tracer.rotateX(Math.PI / 2);
+    
+    this.scene.add(tracer);
+    
+    // Animate and remove tracer
+    let distance = 0;
+    const speed = 200;
+    const animate = () => {
+      distance += speed * 0.016;
+      tracer.position.add(direction.clone().multiplyScalar(speed * 0.016));
+      (tracer.material as THREE.MeshBasicMaterial).opacity -= 0.05;
+      
+      if (distance < 100 && (tracer.material as THREE.MeshBasicMaterial).opacity > 0) {
+        requestAnimationFrame(animate);
+      } else {
+        this.scene.remove(tracer);
+        tracerGeometry.dispose();
+        tracerMaterial.dispose();
+      }
+    };
+    animate();
   }
 
   private handlePlayerReload() {
@@ -279,6 +322,11 @@ export class GameEngine {
       if (ai.team === "bravo" && ai.canShoot(this.player.position)) {
         if (Math.random() < 0.02) {
           // 2% chance per frame to shoot
+          const direction = new THREE.Vector3()
+            .subVectors(this.player.position, ai.position)
+            .normalize();
+          this.createBulletTracer(ai.position.clone().add(new THREE.Vector3(0, 1, 0)), direction);
+          
           this.gameState.health = Math.max(0, this.gameState.health - 10);
           if (this.gameState.health <= 0 && !this.gameState.isDead) {
             this.handlePlayerDeath();
@@ -291,6 +339,11 @@ export class GameEngine {
       for (const target of aliveEnemies) {
         if (ai.team !== target.team && ai.canShoot(target.position)) {
           if (Math.random() < 0.01) {
+            const direction = new THREE.Vector3()
+              .subVectors(target.position, ai.position)
+              .normalize();
+            this.createBulletTracer(ai.position.clone().add(new THREE.Vector3(0, 1, 0)), direction);
+            
             target.takeDamage(10);
             if (target.isDead) {
               if (ai.team === "alpha") {

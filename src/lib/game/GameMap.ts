@@ -10,10 +10,32 @@ export class GameMap {
 
   private createGround(scene: THREE.Scene, world: CANNON.World) {
     const size = 100;
-    const geometry = new THREE.PlaneGeometry(size, size);
+    const segments = 20;
+    const geometry = new THREE.PlaneGeometry(size, size, segments, segments);
+    
+    // Create a checkered pattern with colors
+    const colors = new Float32Array(geometry.attributes.position.count * 3);
+    for (let i = 0; i < geometry.attributes.position.count; i++) {
+      const x = Math.floor((i % (segments + 1)) / 2);
+      const y = Math.floor(i / ((segments + 1) * 2));
+      const isEven = (x + y) % 2 === 0;
+      
+      if (isEven) {
+        colors[i * 3] = 0.3;     // R
+        colors[i * 3 + 1] = 0.5; // G
+        colors[i * 3 + 2] = 0.3; // B
+      } else {
+        colors[i * 3] = 0.4;     // R
+        colors[i * 3 + 1] = 0.4; // G
+        colors[i * 3 + 2] = 0.5; // B
+      }
+    }
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    
     const material = new THREE.MeshStandardMaterial({
-      color: 0x2a2a2a,
-      roughness: 0.8,
+      vertexColors: true,
+      roughness: 0.7,
+      metalness: 0.2,
     });
     const ground = new THREE.Mesh(geometry, material);
     ground.rotation.x = -Math.PI / 2;
@@ -55,9 +77,17 @@ export class GameMap {
     depth: number
   ) {
     const geometry = new THREE.BoxGeometry(width, height, depth);
+    
+    // Colorful walls with gradient effect
+    const wallColors = [0xFF6B6B, 0x4ECDC4, 0xFFE66D, 0x95E1D3];
+    const colorIndex = Math.floor(Math.random() * wallColors.length);
+    
     const material = new THREE.MeshStandardMaterial({
-      color: 0x444444,
-      roughness: 0.7,
+      color: wallColors[colorIndex],
+      roughness: 0.6,
+      metalness: 0.3,
+      emissive: wallColors[colorIndex],
+      emissiveIntensity: 0.1,
     });
     const wall = new THREE.Mesh(geometry, material);
     wall.position.set(x, height / 2, z);
@@ -95,9 +125,17 @@ export class GameMap {
   private createBox(scene: THREE.Scene, world: CANNON.World, x: number, z: number, size: number) {
     const height = size;
     const geometry = new THREE.BoxGeometry(size, height, size);
+    
+    // Vibrant obstacle colors
+    const obstacleColors = [0xFF9FF3, 0xFECA57, 0x48DBFB, 0xFF6348, 0x1DD1A1, 0xEE5A6F];
+    const colorIndex = Math.floor(Math.random() * obstacleColors.length);
+    
     const material = new THREE.MeshStandardMaterial({
-      color: 0x666666,
-      roughness: 0.8,
+      color: obstacleColors[colorIndex],
+      roughness: 0.5,
+      metalness: 0.4,
+      emissive: obstacleColors[colorIndex],
+      emissiveIntensity: 0.15,
     });
     const box = new THREE.Mesh(geometry, material);
     box.position.set(x, height / 2, z);

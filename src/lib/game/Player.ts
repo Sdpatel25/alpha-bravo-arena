@@ -11,7 +11,8 @@ export class Player {
   private jumpForce: number = 8;
   private isGrounded: boolean = false;
   private viewMode: "fpp" | "tpp" = "fpp";
-  private mesh: THREE.Mesh;
+  private mesh: THREE.Group;
+  private weaponMesh: THREE.Mesh;
   private events: Map<string, Function[]> = new Map();
 
   // Input states
@@ -30,11 +31,72 @@ export class Player {
     this.velocity = new THREE.Vector3();
     this.position = new THREE.Vector3(0, 2, 0);
 
-    // Create player mesh
-    const geometry = new THREE.CapsuleGeometry(0.5, 1.5, 4, 8);
-    const material = new THREE.MeshStandardMaterial({ color: 0x4a90e2 });
-    this.mesh = new THREE.Mesh(geometry, material);
-    this.mesh.castShadow = true;
+    // Create humanoid player mesh
+    this.mesh = new THREE.Group();
+    
+    // Body
+    const bodyGeometry = new THREE.BoxGeometry(0.8, 1.2, 0.4);
+    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x2196F3 });
+    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+    body.position.y = 0.6;
+    body.castShadow = true;
+    this.mesh.add(body);
+    
+    // Head
+    const headGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+    const headMaterial = new THREE.MeshStandardMaterial({ color: 0xFFDBAC });
+    const head = new THREE.Mesh(headGeometry, headMaterial);
+    head.position.y = 1.5;
+    head.castShadow = true;
+    this.mesh.add(head);
+    
+    // Arms
+    const armGeometry = new THREE.CylinderGeometry(0.12, 0.12, 0.8, 8);
+    const armMaterial = new THREE.MeshStandardMaterial({ color: 0xFFDBAC });
+    
+    const leftArm = new THREE.Mesh(armGeometry, armMaterial);
+    leftArm.position.set(-0.5, 0.6, 0);
+    leftArm.castShadow = true;
+    this.mesh.add(leftArm);
+    
+    const rightArm = new THREE.Mesh(armGeometry, armMaterial);
+    rightArm.position.set(0.5, 0.6, 0);
+    rightArm.castShadow = true;
+    this.mesh.add(rightArm);
+    
+    // Legs
+    const legGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.9, 8);
+    const legMaterial = new THREE.MeshStandardMaterial({ color: 0x1976D2 });
+    
+    const leftLeg = new THREE.Mesh(legGeometry, legMaterial);
+    leftLeg.position.set(-0.25, -0.45, 0);
+    leftLeg.castShadow = true;
+    this.mesh.add(leftLeg);
+    
+    const rightLeg = new THREE.Mesh(legGeometry, legMaterial);
+    rightLeg.position.set(0.25, -0.45, 0);
+    rightLeg.castShadow = true;
+    this.mesh.add(rightLeg);
+    
+    // Weapon
+    const weaponGroup = new THREE.Group();
+    const weaponBody = new THREE.BoxGeometry(0.15, 0.15, 0.8);
+    const weaponMaterial = new THREE.MeshStandardMaterial({ color: 0x1a1a1a });
+    this.weaponMesh = new THREE.Mesh(weaponBody, weaponMaterial);
+    this.weaponMesh.castShadow = true;
+    weaponGroup.add(this.weaponMesh);
+    
+    // Weapon barrel
+    const barrelGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.4, 8);
+    const barrel = new THREE.Mesh(barrelGeometry, weaponMaterial);
+    barrel.rotation.x = Math.PI / 2;
+    barrel.position.z = 0.6;
+    weaponGroup.add(barrel);
+    
+    weaponGroup.position.set(0.35, 0.8, 0.3);
+    weaponGroup.rotation.y = -Math.PI / 4;
+    this.mesh.add(weaponGroup);
+    
     scene.add(this.mesh);
 
     // Create physics body
